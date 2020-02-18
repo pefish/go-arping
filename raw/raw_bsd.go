@@ -131,6 +131,7 @@ func (p *packetConn) ReadFrom(b []byte) (int, net.Addr, error) {
 		}
 
 		tv := unix.NsecToTimeval(timeout.Nanoseconds())
+		// ioctl是一个专用于设备输入输出操作的系统调用,该调用传入一个设备以及跟设备有关的请求码，系统调用的功能完全取决于请求码。 举个例子，CD-ROM驱动程序可以弹出光驱，它就提供了一个对应的Ioctl请求码
 		if _, _, err := syscall.Syscall(syscall.SYS_IOCTL, uintptr(p.fd), syscall.BIOCSRTIMEOUT, uintptr(unsafe.Pointer(&tv))); err != 0 {
 			return 0, nil, syscall.Errno(err)
 		}
