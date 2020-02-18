@@ -41,5 +41,5 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Printf("ip: %s -> mac地址: %s", ip, mac)
+	fmt.Printf("ip: %s -> mac地址: %s\n", ip, mac)
 }
