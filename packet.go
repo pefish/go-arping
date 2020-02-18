@@ -34,7 +34,7 @@ const (
 	OperationReply   Operation = 2
 )
 
-// A Packet is a raw ARP packet, as described in RFC 826.
+// ARP协议数据结构
 type Packet struct {
 	// HardwareType specifies an IANA-assigned hardware type, as described
 	// in RFC 826.
