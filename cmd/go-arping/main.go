@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	arp "github.com/pefish/go-arping"
+	"github.com/pefish/go-net-arp"
 	"log"
 	"net"
 	"time"
@@ -36,9 +37,25 @@ func main() {
 	}
 
 	ip := net.ParseIP(*ipFlag).To4()
-	mac, err := c.Resolve(ip)
+
+	err = c.Request(ip) // 发出arp请求
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	var mac net.HardwareAddr
+	// 循环等待回复
+	for {
+		arp_, _, err := c.Read()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		if arp_.Operation != net_arp.OperationReply || !arp_.SenderIP.Equal(ip) {
+			continue
+		}
+		mac = arp_.SenderHardwareAddr
+		break
 	}
 
 	fmt.Printf("ip: %s -> mac地址: %s\n", ip, mac)

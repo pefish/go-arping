@@ -2,8 +2,9 @@ package arp
 
 import (
 	"errors"
-	"github.com/pefish/go-arping/ethernet"
-	"github.com/pefish/go-arping/raw"
+	"github.com/pefish/go-ethernet"
+	"github.com/pefish/go-net-arp"
+	"github.com/pefish/go-net-raw"
 	"net"
 	"time"
 )
@@ -32,7 +33,7 @@ type Client struct {
 func Dial(ifi *net.Interface) (*Client, error) {
 	// Open raw socket to send and receive ARP packets using ethernet frames
 	// we build ourselves.
-	p, err := raw.ListenPacket(ifi, protocolARP, nil)
+	p, err := net_raw.ListenPacket(ifi, protocolARP, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -90,42 +91,16 @@ func (c *Client) Request(ip net.IP) error {
 
 	// Create ARP packet for broadcast address to attempt to find the
 	// hardware address of the input IP address
-	arp, err := NewPacket(OperationRequest, c.ifi.HardwareAddr, c.ip, ethernet.BroadcastHardwareAddr, ip)
+	arp, err := net_arp.NewPacket(net_arp.OperationRequest, c.ifi.HardwareAddr, c.ip, ethernet.BroadcastHardwareAddr, ip)
 	if err != nil {
 		return err
 	}
 	return c.WriteTo(arp, ethernet.BroadcastHardwareAddr)
 }
 
-// Resolve performs an ARP request, attempting to retrieve the
-// hardware address of a machine using its IPv4 address. Resolve must not
-// be used concurrently with Read. If you're using Read (usually in a
-// loop), you need to use Request instead. Resolve may read more than
-// one message if it receives messages unrelated to the request.
-func (c *Client) Resolve(ip net.IP) (net.HardwareAddr, error) {
-	err := c.Request(ip)
-	if err != nil {
-		return nil, err
-	}
-
-	// Loop and wait for replies
-	for {
-		arp, _, err := c.Read()
-		if err != nil {
-			return nil, err
-		}
-
-		if arp.Operation != OperationReply || !arp.SenderIP.Equal(ip) {
-			continue
-		}
-
-		return arp.SenderHardwareAddr, nil
-	}
-}
-
 // Read reads a single ARP packet and returns it, together with its
 // ethernet frame.
-func (c *Client) Read() (*Packet, *ethernet.Frame, error) {
+func (c *Client) Read() (*net_arp.Packet, *ethernet.Frame, error) {
 	buf := make([]byte, 128)
 	for {
 		n, _, err := c.p.ReadFrom(buf)
@@ -133,9 +108,9 @@ func (c *Client) Read() (*Packet, *ethernet.Frame, error) {
 			return nil, nil, err
 		}
 
-		p, eth, err := parsePacket(buf[:n])
+		p, eth, err := net_arp.ParsePacket(buf[:n])
 		if err != nil {
-			if err == errInvalidARPPacket {
+			if err == net_arp.ErrInvalidARPPacket {
 				continue
 			}
 			return nil, nil, err
@@ -147,7 +122,7 @@ func (c *Client) Read() (*Packet, *ethernet.Frame, error) {
 // WriteTo writes a single ARP packet to addr. Note that addr should,
 // but doesn't have to, match the target hardware address of the ARP
 // packet.
-func (c *Client) WriteTo(p *Packet, addr net.HardwareAddr) error {
+func (c *Client) WriteTo(p *net_arp.Packet, addr net.HardwareAddr) error {
 	pb, err := p.MarshalBinary()
 	if err != nil {
 		return err
@@ -165,7 +140,7 @@ func (c *Client) WriteTo(p *Packet, addr net.HardwareAddr) error {
 		return err
 	}
 
-	_, err = c.p.WriteTo(fb, &raw.Addr{HardwareAddr: addr})
+	_, err = c.p.WriteTo(fb, &net_raw.Addr{HardwareAddr: addr})
 	return err
 }
 
@@ -176,8 +151,8 @@ func (c *Client) WriteTo(p *Packet, addr net.HardwareAddr) error {
 //
 // For more fine-grained control, use WriteTo to write a custom
 // response.
-func (c *Client) Reply(req *Packet, hwAddr net.HardwareAddr, ip net.IP) error {
-	p, err := NewPacket(OperationReply, hwAddr, ip, req.SenderHardwareAddr, req.SenderIP)
+func (c *Client) Reply(req *net_arp.Packet, hwAddr net.HardwareAddr, ip net.IP) error {
+	p, err := net_arp.NewPacket(net_arp.OperationReply, hwAddr, ip, req.SenderHardwareAddr, req.SenderIP)
 	if err != nil {
 		return err
 	}

@@ -2,7 +2,7 @@
 ### Run Locally
 
 ```shell script
-go run ./cmd/go-arping/
+sudo go run ./cmd/go-arping/ -i en0 -ip 192.168.0.105
 ```
 
 ### Build
@@ -14,11 +14,11 @@ go build -o build/go-arping ./cmd/go-arping/
 ### Run
 
 ```shell script
-go-arping --help
+sudo go-arping --help
 ```
 
 ### Example
 
 ```shell script
-go-arping -i WLAN
+sudo go-arping -i en0 -ip 192.168.0.105
 ```
